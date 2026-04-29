@@ -1,25 +1,101 @@
-import { Map, MapMarker } from "react-kakao-maps-sdk";
+import { useEffect, useState } from "react";
+import { supabase } from "./api/supabaseClient"; 
+import { searchSaltBread } from "./api/kakaoApi";
+import StoreList from "./components/StoreList";
+import MapContainer from "./components/MapContainer";
 
 function App() {
+  const [stores, setStores] = useState([]);
+  const [visibleStores, setVisibleStores] = useState([]); 
+  const [selectedStore, setSelectedStore] = useState(null);
+  const [map, setMap] = useState(null);
+  const [franchiseList, setFranchiseList] = useState([]);
+  const [showSearchButton, setShowSearchButton] = useState(false);
+
+  
+  const fetchStores = async () => {
+    const { data: storeData } = await supabase
+      .from('stores')
+      .select('*')
+      .eq('is_franchise', false) 
+      .order('id', { ascending: false });
+    
+    if (storeData) setStores(storeData);
+
+    const { data: franchiseData } = await supabase
+      .from('franchise_brands')
+      .select('name');
+    
+    if (franchiseData) setFranchiseList(franchiseData.map(f => f.name));
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await fetchStores();
+      } catch (error) {
+        console.error("초기 데이터 로딩 실패:", error);
+      }
+    };
+    
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
+  const updateVisibleStores = (mapInstance) => {
+    if (!mapInstance || stores.length === 0) return;
+    const bounds = mapInstance.getBounds();
+    const visible = stores.filter((store) => {
+      return bounds.contain(new window.kakao.maps.LatLng(store.lat, store.lng));
+    });
+    setVisibleStores(visible);
+  };
+
+  const handleMapIdle = (mapInstance) => {
+    setMap(mapInstance);
+    updateVisibleStores(mapInstance);
+    setShowSearchButton(true);
+  };
+
+  const handleCollectData = async () => {
+    try {
+      if (!map) return;
+      setShowSearchButton(false);
+      const lat = map.getCenter().getLat();
+      const lng = map.getCenter().getLng();
+      const documents = await searchSaltBread(lat, lng);
+      
+      const storesToSave = documents.map((s) => ({
+        name: s.place_name,
+        address: s.address_name,
+        lat: parseFloat(s.y),
+        lng: parseFloat(s.x),
+        phone_number: s.phone,
+        is_franchise: franchiseList.some((brand) => s.place_name.includes(brand)),
+        operating_hours: "정보 없음",
+      }));
+
+      if (storesToSave.length > 0) {
+        await supabase.from("stores").upsert(storesToSave, { onConflict: "name" });
+        fetchStores();
+      }
+    } catch (err) { console.error(err); }
+  };
+
   return (
-    /* fixed와 inset-0는 부모 CSS를 무시하고 화면 전체를 강제로 차지하게 합니다. */
-    <div style={{ 
-      position: "fixed", 
-      top: 0, 
-      left: 0, 
-      width: "100vw", 
-      height: "100vh",
-      backgroundColor: "#f0f0f0" // 지도가 안 뜰 때 배경이라도 보이는지 확인용
-    }}>
-      <Map
+    <div style={{ display: "flex", width: "100vw", height: "100vh" }}>
+      <StoreList stores={visibleStores} selectedStore={selectedStore} onStoreClick={setSelectedStore} />
+      <MapContainer 
         center={{ lat: 35.1532, lng: 129.1189 }}
-        style={{ width: "100%", height: "100%" }}
-        level={3}
-      >
-        <MapMarker position={{ lat: 35.1532, lng: 129.1189 }}>
-          <div style={{ padding: "5px", color: "#000" }}>🥐 광안리 소금빵 원정대</div>
-        </MapMarker>
-      </Map>
+        visibleStores={visibleStores}
+        selectedStore={selectedStore}
+        onStoreClick={setSelectedStore}
+        onCreate={setMap}
+        onIdle={handleMapIdle}
+        showSearchButton={showSearchButton}
+        onSearchClick={handleCollectData}
+      />
     </div>
   );
 }
