@@ -73,6 +73,8 @@ function App() {
         lng: parseFloat(s.x),
         phone_number: s.phone,
         is_franchise: franchiseList.some((brand) => s.place_name.includes(brand)),
+        place_url: s.place_url,    
+        category: s.category_name,
         operating_hours: "정보 없음",
       }));
 
