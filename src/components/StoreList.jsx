@@ -1,4 +1,3 @@
-// StoreList.jsx
 const StoreList = ({ stores, selectedStore, onStoreClick }) => {
   return (
     <div style={{ 
@@ -9,7 +8,7 @@ const StoreList = ({ stores, selectedStore, onStoreClick }) => {
       backgroundColor: "#fff" 
     }}>
       <h2 style={{ margin: "0 0 20px 0", fontSize: "1.5rem" }}>
-        🥐 화면 속 소금빵 ({stores.length})
+        🥐 검색된 가게 ({stores.length})
       </h2>
       
       {stores.length === 0 ? (
