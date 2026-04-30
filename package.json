@@ -13,7 +13,8 @@
     "@supabase/supabase-js": "^2.105.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-kakao-maps-sdk": "^1.2.1"
+    "react-kakao-maps-sdk": "^1.2.1",
+    "tailwindcss-animated": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
